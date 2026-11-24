@@ -1,8 +1,7 @@
 #!/bin/bash
 # ============================================================
-# VLESS + WebSocket 一键部署脚本
-# 适用: Render / Railway / Koyeb / Back4App / 任意支持 Docker 的平台
-# 特点: 走 443 端口 + WebSocket，抗封锁强
+# VLESS + WebSocket 一键部署
+# 适用: Render / Railway / Koyeb / Back4App / 任意 Docker 平台
 # ============================================================
 set -e
 
@@ -16,8 +15,8 @@ echo " Port    : ${PORT}"
 echo " WS Path : ${WS_PATH}"
 echo "===================================="
 
-# 生成 xray 配置
 mkdir -p /etc/xray
+
 cat > /etc/xray/config.json <<EOF
 {
   "log": { "loglevel": "warning" },
@@ -37,18 +36,31 @@ cat > /etc/xray/config.json <<EOF
         "wsSettings": {
           "path": "${WS_PATH}"
         }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["http", "tls", "quic"]
       }
     }
   ],
   "outbounds": [
     { "protocol": "freedom", "tag": "direct" },
     { "protocol": "blackhole", "tag": "block" }
-  ]
+  ],
+  "routing": {
+    "rules": [
+      {
+        "type": "field",
+        "protocol": ["bittorrent"],
+        "outboundTag": "block"
+      }
+    ]
+  }
 }
 EOF
 
-echo "[+] 配置已生成:"
+echo "[+] 配置已生成"
 cat /etc/xray/config.json
 
-echo "[+] 启动 Xray..."
+echo "[+] 启动 Xray on port ${PORT}..."
 exec /usr/local/bin/xray -c /etc/xray/config.json
